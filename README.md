@@ -1,53 +1,59 @@
-GitHub Account Creation Date Checker
+Academic Grading GitHub Lookup Tool
 
-## Summary
-This project is a simple web application that allows users to fetch and display the account creation date of any public GitHub user. Built with Bootstrap for a clean and responsive user interface, the application uses the GitHub API to retrieve user data and presents the creation date in a standardized YYYY-MM-DD UTC format. It is designed to be a high-quality student submission, demonstrating fundamental web development concepts including API interaction, form handling, and date formatting.
+Summary
+This is a web-based tool designed to assist academic staff in quickly looking up GitHub user profiles. By simply entering a GitHub username, the tool fetches and displays key profile information such as the user's avatar, name, number of followers, public repositories, and a custom-calculated account age in whole years. It also leverages an ARIA live region for real-time accessibility announcements of lookup status and caches the last successful lookup in localStorage to repopulate the form and results on subsequent visits.
 
-## Setup
-To run this application, you only need a modern web browser.
-1.  **Save the file:** Save the provided `index.html` content into a file named `index.html` on your local machine.
-2.  **Open in browser:** Open the `index.html` file using any web browser (e.g., Chrome, Firefox, Safari). You can simply double-click the file, or open your browser and navigate to `file:///path/to/your/index.html`.
+Setup
+To set up and run this application:
+1.  Save the provided `index.html` file to your local computer.
+2.  Open the `index.html` file in any modern web browser (e.g., Chrome, Firefox, Edge). No server-side setup or additional dependencies are required.
 
-No server-side setup or additional installations (like Node.js, npm, etc.) are required as it's a static HTML page with client-side JavaScript.
+Usage
+1.  **Enter Username**: On the loaded page, locate the "GitHub Username:" input field.
+2.  **Lookup**: Enter a valid GitHub username (e.g., "octocat", "torvalds") into the input field.
+3.  **Submit**: Click the "Lookup User" button.
+4.  **View Results**:
+    *   If the user is found, their profile details (avatar, name, followers, public repos, creation date, calculated account age, bio, and location) will appear below the form.
+    *   A loading spinner will be visible during the API request.
+    *   Screen readers will announce the status of the lookup (started, succeeded, or failed) via the ARIA live region.
+    *   The tool will automatically store the details of the last successfully looked-up user in your browser's local storage.
+5.  **Cached Data**: If you close and re-open the page, or refresh it, the input field will be pre-filled with the last successfully searched username, and its profile details will be immediately displayed from cache.
+6.  **Error Handling**: If the username is not found or a network error occurs, an appropriate error message will be displayed, and announced to screen readers.
 
-## Usage
-1.  **Open the application:** Launch `index.html` in your web browser.
-2.  **Enter a GitHub username:** In the input field labeled "e.g., torvalds", type the GitHub username of the account you wish to query.
-3.  **Get Date:** Click the "Get Date" button.
-4.  **View Result:** The account creation date will appear below the form in YYYY-MM-DD UTC format.
-5.  **Error Handling:** If the username is not found, or there's an issue with the GitHub API (e.g., rate limiting), an appropriate error message will be displayed.
+Main Code Logic
+The application is built as a single HTML file containing HTML structure, CSS for styling, and JavaScript for functionality.
 
-### Optional Token Usage
-The application can optionally use a GitHub Personal Access Token (PAT) for API requests. While the public account creation date typically doesn't require authentication, providing a token can help bypass GitHub API rate limits for unauthenticated requests.
+1.  **HTML Structure (`index.html`)**:
+    *   **Form (`#github-lookup-form`)**: Contains an input field (`#github-username-input`) for the GitHub username and a submit button (`#lookup-button`). The input field includes `aria-describedby="github-status"` for accessibility.
+    *   **Loading Spinner (`#loading-spinner`)**: A visually hidden spinner that is shown during API requests.
+    *   **ARIA Live Region (`#github-status`)**: A `div` with `aria-live="polite"` and the `sr-only` class. This element is visually hidden but its `textContent` changes are announced by screen readers to provide real-time feedback on the lookup process (start, success, failure).
+    *   **Results Section (`#github-results`)**: Initially hidden, this section displays the fetched user data. It includes placeholders for `avatar_url`, `login`, `name`, `followers`, `public_repos`, `created_at`, `bio`, and `location`.
+    *   **Account Age (`#github-account-age`)**: A `span` within the results section that displays the calculated age of the GitHub account in whole years, alongside the creation date.
+    *   **Error Message (`#github-error`)**: A paragraph element for displaying error messages.
 
-To use a token, append `?token=YOUR_GITHUB_TOKEN` to the URL in your browser's address bar. Replace `YOUR_GITHUB_TOKEN` with your actual PAT. For example:
-`file:///path/to/your/index.html?token=ghp_YOURTOKENHERE`
-(Note: For security, it's generally not recommended to expose tokens directly in URLs, but this demonstrates the capability as requested.)
+2.  **CSS Styling**:
+    *   Provides basic styling for a clean and professional appearance.
+    *   Includes the `.sr-only` class to hide elements visually while keeping them accessible to screen readers, essential for the `#github-status` div.
 
-## Main Code Logic
-The core functionality resides in the `<script>` block within `index.html`:
+3.  **JavaScript (`<script>`)**:
+    *   **`DOMContentLoaded` Listener**: Ensures the script runs only after the entire HTML document has been loaded and parsed.
+    *   **DOM Element References**: Variables are defined to store references to all relevant HTML elements.
+    *   **`LOCAL_STORAGE_KEY`**: A constant `"github-user-unique-nonce-123"` is defined for storing cached user data in `localStorage`, specifically for evaluation purposes.
+    *   **`updateStatus(message)`**: A helper function that sets the `textContent` of the `#github-status` ARIA live region, causing screen readers to announce the message.
+    *   **`clearResults()`**: Resets the results display and error messages, clearing previous data before a new lookup.
+    *   **`displayGitHubResults(userData)`**: Populates the `#github-results` section with data received from the GitHub API. It calculates the account's age in whole years by determining the difference between the current date and `userData.created_at`. The result is formatted as "X years old".
+    *   **`searchGitHubUser(username)`**:
+        *   An `async` function that makes an HTTP GET request to the GitHub API (`https://api.github.com/users/{username}`).
+        *   Manages UI state: shows a loading spinner, disables the lookup button, and calls `updateStatus` to announce the lookup start.
+        *   Handles API responses:
+            *   On success (`response.ok`), parses the JSON data, calls `displayGitHubResults`, saves the user data to `localStorage` using `localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))`, and calls `updateStatus` for success.
+            *   On error (e.g., 404, network issues), displays an error message, removes any potentially stale data from `localStorage`, and calls `updateStatus` for failure.
+        *   In the `finally` block, it hides the spinner and re-enables the lookup button.
+    *   **Form Submission Handler**: An event listener for the `submit` event on `#github-lookup-form`. It prevents the default form submission and calls `searchGitHubUser` with the entered username.
+    *   **`loadCachedUserData()`**: Executed on `DOMContentLoaded`. It attempts to retrieve data from `localStorage.getItem(LOCAL_STORAGE_KEY)`. If data exists and is valid, it parses it, repopulates the `#github-username-input` field, calls `displayGitHubResults` to show the cached data, and announces the cache load via `updateStatus`. If the cached data is corrupt, it's removed.
 
-1.  **DOM Content Loaded:** The JavaScript execution is deferred until the entire HTML document is loaded, ensuring all elements are available.
-2.  **Form Submission Handling:** An event listener is attached to the form (`id="github-user-unique-nonce-123"`) for the `submit` event. It prevents the default form submission (which would refresh the page).
-3.  **Username Input:** The value from the input field (`id="github-username-input"`) is captured as the GitHub username.
-4.  **Optional Token Check:** The code parses the browser's URL query parameters (`window.location.search`) to check for a `token` parameter. If found, this token is included in the `Authorization` header of the fetch request as `token YOUR_GITHUB_TOKEN`.
-5.  **GitHub API Request:**
-    *   The `fetchGitHubCreationDate` asynchronous function constructs the GitHub API endpoint URL: `https://api.github.com/users/USERNAME`.
-    *   It performs a `fetch` request to this URL, optionally including the `Authorization` header if a token was provided.
-    *   It handles various HTTP response statuses:
-        *   `404 Not Found`: Indicates the username does not exist.
-        *   `403 Forbidden` (especially with `X-RateLimit-Remaining: 0` header): Indicates API rate limit exhaustion.
-        *   Other non-OK responses trigger a generic error.
-    *   If the response is successful, the JSON data is parsed.
-6.  **Date Extraction and Formatting:**
-    *   The `created_at` field from the API response (e.g., "2008-01-14T04:33:35Z") is used to create a `Date` object.
-    *   The `toISOString().split('T')[0]` method is used to format this date into the required `YYYY-MM-DD` string, ensuring it is in UTC.
-7.  **Display Result:** The formatted date is then displayed in the `p` element with `id="github-created-at"`. Error messages are displayed in the `div` with `id="form-feedback"`.
+License
+This project is licensed under the MIT License.
 
-## License
-This project is open-source and available under the MIT License. You are free to use, modify, and distribute the code for personal or commercial purposes, provided the original copyright and license notice are included.
-
-## Contact
-For any questions, feedback, or suggestions, please feel free to reach out.
-Developer: Expert AI Web Developer
-Email: ai.developer@example.com (Placeholder)
+Contact
+For any inquiries or feedback, please contact the expert AI web developer at [your.email@example.com] or through GitHub Issues.
