@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Account Creation Date Checker</title>
+    <!-- Bootstrap CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        body {
+            padding-top: 50px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+        }
+        .card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card p-4">
+            <h1 class="card-title text-center mb-4">GitHub Account Creation Date</h1>
+            <p class="text-muted text-center mb-4">Enter a GitHub username to find out when their account was created (UTC).</p>
+
+            <form id="github-user-unique-nonce-123" class="mb-4">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="github-username-input" placeholder="e.g., torvalds" aria-label="GitHub username" required>
+                    <button class="btn btn-primary" type="submit">Get Date</button>
+                </div>
+                <div id="form-feedback" class="text-danger mt-2" aria-live="polite"></div>
+            </form>
+
+            <div class="card p-3 bg-light">
+                <h5 class="card-subtitle mb-2 text-muted">Creation Date:</h5>
+                <p class="card-text fs-4 fw-bold" id="github-created-at">Enter a username above.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector("#github-user-unique-nonce-123");
+            const usernameInput = document.getElementById("github-username-input");
+            const createdAtDisplay = document.getElementById("github-created-at");
+            const formFeedback = document.getElementById("form-feedback");
+
+            /**
+             * Fetches the GitHub account creation date for a given username.
+             * Optionally uses a GitHub Personal Access Token (PAT) from the URL query parameter
+             * to potentially bypass rate limits or access private data (though 'created_at' is public).
+             * @param {string} username - The GitHub username to query.
+             * @returns {Promise<string|null>} The creation date in YYYY-MM-DD UTC format, or null if an error occurs.
+             */
+            async function fetchGitHubCreationDate(username) {
+                formFeedback.textContent = ''; // Clear previous feedback
+                createdAtDisplay.textContent = 'Fetching...';
+
+                // Check for an optional GitHub token in the URL query parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const githubToken = urlParams.get('token');
+
+                const apiUrl = `https://api.github.com/users/${username}`;
+                const fetchOptions = {};
+
+                // If a token is provided in the URL, include it in the Authorization header.
+                // This is good practice for GitHub API requests, especially for higher rate limits.
+                if (githubToken) {
+                    fetchOptions.headers = {
+                        'Authorization': `token ${githubToken}`
+                    };
+                    console.log('GitHub token detected in URL and applied to API request header.');
+                }
+
+                try {
+                    const response = await fetch(apiUrl, fetchOptions);
+
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            throw new Error(`User "${username}" not found.`);
+                        } else if (response.status === 403 && response.headers.get('X-RateLimit-Remaining') === '0') {
+                            throw new Error('GitHub API rate limit exceeded. Please try again later or provide a valid token.');
+                        } else {
+                            throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+                        }
+                    }
+
+                    const data = await response.json();
+                    const createdAt = new Date(data.created_at);
+
+                    // Format date to YYYY-MM-DD UTC
+                    // toISOString() returns in UTC, then we extract the date part
+                    return createdAt.toISOString().split('T')[0];
+                } catch (error) {
+                    console.error("Error fetching GitHub user data:", error);
+                    formFeedback.textContent = `Error: ${error.message}`;
+                    createdAtDisplay.textContent = 'Failed to retrieve.';
+                    return null;
+                }
+            }
+
+            // Event listener for form submission
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault(); // Prevent default form submission behavior (page reload)
+                const username = usernameInput.value.trim();
+
+                if (username) {
+                    const date = await fetchGitHubCreationDate(username);
+                    if (date) {
+                        createdAtDisplay.textContent = date;
+                    }
+                } else {
+                    formFeedback.textContent = 'Please enter a GitHub username.';
+                    createdAtDisplay.textContent = 'Enter a username above.';
+                }
+            });
+        });
+    </script>
+
+    <footer class="text-center text-muted py-4 mt-5 border-top">
+        <p>&copy; 2023 GitHub Account Creation Date Checker. Licensed under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">MIT License</a>.</p>
+    </footer>
+</body>
+</html>
